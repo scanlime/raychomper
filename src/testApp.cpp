@@ -37,21 +37,34 @@ void testApp::update()
 
 void testApp::draw()
 {
-    ofPoint p1, p2;
-
-    p1.set(ofGetMouseX(), ofGetMouseY());
-
-    hist.clear();
-
-    for (unsigned i = 0; i < 10000; ++i) {
-        p2.set(ofRandom(100, 200), ofRandom(100, 200));
-        hist.line(p1, p2);
-    }
-    hist.increment();
-
-    hist.render(histPixels, 0.01);
+    scene.castRays(hist, 2000);
+    hist.render(histPixels, 400);
     histTexture.loadData(histPixels);
     histTexture.draw(0, 0);
+}
+
+void testApp::updateScene()
+{
+    hist.clear();
+    scene.clear();
+
+    // Light source in screen center
+    scene.lightSource.set(ofGetWidth() / 2, ofGetHeight() / 2);
+
+    Scene::Material absorptive(0, 0, 0);
+    Scene::Material diffuse(0, 1, 0);
+
+    ofVec2f topLeft(0, 0);
+    ofVec2f bottomRight(ofGetWidth()-1, ofGetHeight()-1);
+    ofVec2f topRight(bottomRight.x, 0);
+    ofVec2f bottomLeft(0, bottomRight.y);
+
+    // Screen boundary
+    scene.add(topLeft, topRight, bottomRight, bottomLeft, absorptive);
+
+    // Diffuse line following mouse
+    ofVec2f mouse(ofGetMouseX(), ofGetMouseY());
+    scene.add(mouse, mouse + ofVec2f(800, 300), diffuse);
 }
 
 void testApp::keyPressed(int key)
@@ -62,8 +75,9 @@ void testApp::keyReleased(int key)
 {
 }
 
-void testApp::mouseMoved(int x, int y )
+void testApp::mouseMoved(int x, int y)
 {
+    updateScene();
 }
 
 void testApp::mouseDragged(int x, int y, int button)
@@ -82,6 +96,7 @@ void testApp::windowResized(int w, int h)
 {
     hist.resize(w, h);
     histTexture.allocate(w, h, GL_LUMINANCE);
+    updateScene();
 }
 
 void testApp::gotMessage(ofMessage msg)

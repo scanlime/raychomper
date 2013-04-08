@@ -82,7 +82,7 @@ static double fpart(double x)
     return x - int(x);
 }
 
-void HistogramImage::line(const ofPoint &p1, const ofPoint &p2)
+void HistogramImage::line(const ofVec2f &p1, const ofVec2f &p2)
 {
     /*
      * Modified version of Xiaolin Wu's antialiased line algorithm:
@@ -122,7 +122,7 @@ void HistogramImage::line(const ofPoint &p1, const ofPoint &p2)
      * length, but with Wu's algorithm it's proportional to dx.
      * Scale the brightness of each pixel to compensate.
      */
-    double br = 255 * sqrtf(dx*dx + dy*dy) / dx;
+    double br = 128 * sqrtf(dx*dx + dy*dy) / dx;
 
     // First endpoint
     double xend = round(x0);
@@ -130,8 +130,8 @@ void HistogramImage::line(const ofPoint &p1, const ofPoint &p2)
     double xgap = br * (1 - fpart(x0 + 0.5));
     unsigned xpxl1 = xend;
     unsigned ypxl1 = yend;
-    plot(hX * xpxl1 + hY * ypxl1, int((1 - fpart(yend)) * xgap));
-    plot(hX * xpxl1 + hY * (ypxl1+1), int(fpart(yend) * xgap));
+    plotC(hX * xpxl1 + hY * ypxl1, int((1 - fpart(yend)) * xgap));
+    plotC(hX * xpxl1 + hY * (ypxl1+1), int(fpart(yend) * xgap));
     float intery = yend + gradient;
 
     // Second endpoint
@@ -140,15 +140,15 @@ void HistogramImage::line(const ofPoint &p1, const ofPoint &p2)
     xgap = br * fpart(x1 + 0.5);
     unsigned xpxl2 = xend;
     unsigned ypxl2 = yend;
-    plot(hX * xpxl2 + hY * ypxl2, int((1 - fpart(yend)) * xgap));
-    plot(hX * xpxl2 + hY * (ypxl2+1), int(fpart(yend) * xgap)); 
+    plotC(hX * xpxl2 + hY * ypxl2, int((1 - fpart(yend)) * xgap));
+    plotC(hX * xpxl2 + hY * (ypxl2+1), int(fpart(yend) * xgap)); 
 
     // In-between
     for (unsigned x = xpxl1 + 1; x < xpxl2; ++x) {
         unsigned iy = intery;
         double fy = fpart(intery);
-        plot(hX * x + hY * iy, int(br * (1-fy)));
-        plot(hX * x + hY * (iy+1), int(br * fy));
+        plotC(hX * x + hY * iy, int(br * (1-fy)));
+        plotC(hX * x + hY * (iy+1), int(br * fy));
         intery += gradient;
     }
 }

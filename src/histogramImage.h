@@ -52,6 +52,13 @@ public:
             writePackets(block, 0x100);
     }
 
+    // Plot one point, by array index, with clipping
+    void plotC(unsigned index, unsigned count)
+    {
+        if (index < packets.size())
+            plot(index, count);
+    }
+
     // Plot a point, by X/Y coordinate, with clipping.
     void plot(unsigned x, unsigned y, unsigned count)
     {
@@ -60,7 +67,7 @@ public:
     }
 
     // Plot an antialiased line segment, with clipping. Endpoints are floating point.
-    void line(const ofPoint &p1, const ofPoint &p2);
+    void line(const ofVec2f &p1, const ofVec2f &p2);
 
     void increment()
     {

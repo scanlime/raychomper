@@ -28,6 +28,7 @@
 
 #include "ofMain.h"
 #include "histogramImage.h"
+#include "scene.h"
 
 class testApp : public ofBaseApp
 {
@@ -47,7 +48,10 @@ public:
 	void gotMessage(ofMessage msg);
 
 private:
+	Scene scene;
 	HistogramImage hist;
 	ofPixels histPixels;
 	ofTexture histTexture;
+
+	void updateScene();
 };
