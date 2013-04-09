@@ -41,6 +41,7 @@ public:
     // Plot one point on the histogram, given its array index and a weight.
     void plot(unsigned index, unsigned count)
     {
+        #if 0
         unsigned block = index >> 8;
         uint8_t packetCount = packetCounts[block];
         Packet p = { (uint8_t)index, count - 1};
@@ -50,6 +51,9 @@ public:
 
         if (!packetCount)
             writePackets(block, 0x100);
+        #endif
+
+        counts[index] += count;
     }
 
     // Plot one point, by array index, with clipping

@@ -28,6 +28,12 @@
 #include "histogramImage.h"
 
 
+void Scene::freeze()
+{
+    for (unsigned i = 0; i < segments.size(); ++i)
+        segments[i].frozen = true;
+}
+
 void Scene::castRays(HistogramImage &hist, unsigned count)
 {
     while (count--) {
@@ -62,17 +68,17 @@ void Scene::castRays(HistogramImage &hist, unsigned count)
             Material m = closestSeg->m;
             lastSeg = closestSeg;
             rayOrigin = intersection;
-
-            if (r <= m.diffuse) {
+            
+            if (r < m.d1) {
                 // Diffuse reflection. Angle randomized.
                 randomVector(rayDirection);
 
-            } else if (r <= m.diffuse + m.reflective) {
+            } else if (r < m.r2) {
                 // Glossy reflection. Angle reflected.
                 ofVec2f normal = closestSeg->normal;
                 rayDirection = rayDirection - (2 * rayDirection.dot(normal)) * normal;
 
-            } else if (r <= m.diffuse + m.reflective + m.transmissive) {
+            } else if (r < m.t3) {
                 // Transmissive. Angle not changed.
 
             } else {

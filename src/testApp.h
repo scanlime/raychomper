@@ -27,31 +27,39 @@
 #pragma once
 
 #include "ofMain.h"
+#include "ofxUI.h"
 #include "histogramImage.h"
 #include "scene.h"
 
 class testApp : public ofBaseApp
 {
 public:
-	void setup();
-	void update();
-	void draw();
+    void setup();
+    void update();
+    void draw();
 
-	void keyPressed(int key);
-	void keyReleased(int key);
-	void mouseMoved(int x, int y );
-	void mouseDragged(int x, int y, int button);
-	void mousePressed(int x, int y, int button);
-	void mouseReleased(int x, int y, int button);
-	void windowResized(int w, int h);
-	void dragEvent(ofDragInfo dragInfo);
-	void gotMessage(ofMessage msg);
+    void guiEvent(ofxUIEventArgs &e);
+    void keyPressed(int key);
+    void keyReleased(int key);
+    void mouseMoved(int x, int y );
+    void mouseDragged(int x, int y, int button);
+    void mousePressed(int x, int y, int button);
+    void mouseReleased(int x, int y, int button);
+    void windowResized(int w, int h);
+    void dragEvent(ofDragInfo dragInfo);
+    void gotMessage(ofMessage msg);
 
 private:
-	Scene scene;
-	HistogramImage hist;
-	ofPixels histPixels;
-	ofTexture histTexture;
+    Scene scene;
+    HistogramImage hist;
+    ofPixels histPixels;
+    ofTexture histTexture;
+    ofxUICanvas *gui;
 
-	void updateScene();
+    float brightness;
+    bool showHandles;
+    bool addingSegment;
+    bool addingSecondPoint;
+
+    void initScene();
 };

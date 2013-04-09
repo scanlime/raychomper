@@ -33,16 +33,38 @@ class Scene
 {
 public:
     struct Material {
-        float diffuse, reflective, transmissive;
-        Material(float d, float r, float t) : diffuse(d), reflective(r), transmissive(t) {}
+        // Stored as a cumulative probability distribution
+        float d1, r2, t3;
+    
+        Material(float diffuse, float reflective, float transmissive)
+            : d1(diffuse), r2(diffuse + reflective),
+              t3(diffuse + reflective + transmissive) {}
     };
 
     struct Segment {
         ofVec2f p1, p2;
         ofVec2f normal;
         Material m;
+        bool frozen;
+
+        void updateNormal() {
+            normal = (p2 - p1).getPerpendicular();
+        }
+
         Segment(const ofVec2f &p1, const ofVec2f &p2, const Material &m) :
-            p1(p1), p2(p2), normal((p2 - p1).getPerpendicular()), m(m) {}
+            p1(p1), p2(p2), m(m) {
+            updateNormal();
+        }
+
+        void setP1(const ofVec2f &v) {
+            p1 = v;
+            updateNormal();
+        }
+
+        void setP2(const ofVec2f &v) {
+            p2 = v;
+            updateNormal();
+        }
     };
 
     std::vector<Segment> segments;
@@ -51,6 +73,8 @@ public:
     void clear() {
         segments.clear();
     }
+
+    void freeze();
 
     void add(const Segment &s) {
         segments.push_back(s);
