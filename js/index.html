@@ -4,24 +4,46 @@
     <title>Raychomper</title>
     <script src='jquery-1.9.1.min.js' type='text/javascript'></script>
     <script src='raychomper.js' type='text/javascript'></script>
+    <link href='http://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css' />
     <style>
 
-        body {
-            background: #111;
-        }
+body {
+    background: #111;
+    color: rgba(255, 255, 240, 0.4);
+    font-size: 18px;
+    font-family: 'Roboto', sans-serif;
+}
 
-        #histogramImage {
-            width: 600px;
-            height: 600px;
-            background: black;
-            border: 1px solid #444;
-            display: block;
-            margin: 30px auto;
-        }
+#histogramImage {
+    width: 600px;
+    height: 600px;
+    background: black;
+    border: 1px solid #444;
+    display: block;
+    margin: 30px auto 0 auto;
+}
+
+.histBelow {
+    width: 600px;
+    margin: 0px auto;
+    display: block;
+    padding: 0.25em 0;
+}
+
+.histBelow .label {
+    float: left;
+    padding: 0 0.5em;
+    color: rgba(255, 255, 240, 0.2);
+}
 
     </style>
 </head>
 <body>
-    <canvas id='histogramImage' />
+
+    <canvas id='histogramImage'></canvas>
+
+    <p class='histBelow'><span class='label'>Rays Cast:</span><span id='raysCast'>0</span></p>
+    <p class='histBelow'><span class='label'>Debug:</span><span id='debugText'></span></p>
+
 </body>
 </html>
