@@ -35,8 +35,8 @@ class Segment
         dx = @x1 - @x0
         dy = @y1 - @y0
         len = Math.sqrt(dx*dx + dy*dy)
-        @xn = dx / len
-        @yn = -dy / len
+        @xn = -dy / len
+        @yn = dx / len
 
 
 class RayChomper
@@ -76,9 +76,15 @@ class RayChomper
         # Start running; worker threads to simulate, timer loop to draw.
         @doFrame()
 
-    doFrame: ->
-        @simulate(1000)
+    doFrame: ->    
+        console.time("Sim")
+        @simulate(2000)
+        console.timeEnd("Sim")
+
+        console.time("Draw")
         @draw()
+        console.timeEnd("Draw")
+
         setTimeout((() => @doFrame()), 0)
 
     clear: ->
@@ -248,17 +254,16 @@ class RayChomper
                 xgap = br * (1 - x05 + xend)
                 xpxl1 = xend + 1
                 ypxl1 = yend|0
-                i = hX * xpxl1 + hY * ypxl1
+                i = hX * xend + hY * ypxl1
                 counts[i] += xgap * (1 - yend + ypxl1)
                 counts[i + hY] += xgap * (yend - ypxl1)
                 intery = yend + gradient
 
                 # Second endpoint
                 x15 = x1 + 0.5
-                xend = x15|0
-                yend = y1 + gradient * (xend - x1)
-                xgap = br * (x15 - xend)
                 xpxl2 = x15|0
+                yend = y1 + gradient * (xpxl2- x1)
+                xgap = br * (x15 - xpxl2)
                 ypxl2 = yend|0
                 i = hX * xpxl2 + hY * ypxl2
                 counts[i] += xgap * (1 - yend + ypxl2)
@@ -307,5 +312,6 @@ class RayChomper
 $(document).ready(() ->
     r = new RayChomper('histogramImage')
     r.segments.push(new Segment(300, 100, 4000, 1800, 1.0, 0, 0))
+    r.segments.push(new Segment(100, 400, 200, 500, 1.0, 0.2, 0))
     r.start()
 )
