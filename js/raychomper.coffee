@@ -135,10 +135,10 @@ class Renderer
     scheduleWork: (worker) ->
         if @workCookie != @bufferCookie
             # Parameters changing; use a minimal batch size
-            numRays = 100
+            numRays = 1000
         else
             # Scale batches of work so they get longer after the image has settled
-            numRays = 0 | Math.min(199999, Math.max(100, @raysCast / 2))
+            numRays = 0 | Math.min(199999, Math.max(1000, @raysCast / 2))
 
         worker._latestCookie = @workCookie
         worker._numRays = numRays
@@ -177,7 +177,7 @@ class Renderer
         if @running
             # If any threads are running really large batches, reset them now.
             for w in @workers
-                if w._numRays >= 1000
+                if w._numRays >= 10000
                     @initWorker(w)
 
     drawLight: (br) ->
