@@ -80,6 +80,8 @@ class Renderer
         @bufferCookie = 0
 
         @callback = () -> null
+        @segments = []
+
         @running = false
         @resize()
 
@@ -104,7 +106,7 @@ class Renderer
         @lightY = @height / 2
 
         # Scene walls
-        @segments = [
+        @walls = [
             new Segment(0, 0, @width-1, 0, 0,0,0),
             new Segment(0, 0, 0, @height-1, 0,0,0),
             new Segment(@width-1, @height-1, @width-1, 0, 0,0,0),
@@ -168,7 +170,7 @@ class Renderer
             'height': @height,
             'lightX': @lightX,
             'lightY': @lightY,
-            'segments': @segments,
+            'segments': @walls.concat(@segments),
             'numRays': numRays,
             'cookie': @workCookie,
             })
@@ -242,28 +244,50 @@ class Renderer
             @ctx.stroke()
 
 
+class UndoTracker
+    constructor: (@renderer) ->
+        @undoQueue = []
+        @redoQueue = []
+
+    checkpoint: ->
+        @undoQueue.push(@checkpointData())
+
+    checkpointData: ->
+        return [
+            @renderer.lightX,
+            @renderer.lightY,
+            @renderer.segments.slice()
+        ]
+
+    restore: (record) ->
+        [@renderer.lightX, @renderer.lightY, @renderer.segments] = record
+        @renderer.clear()
+
+    undo: ->
+        if @undoQueue.length
+            @redoQueue.push(@checkpointData())
+            @restore(@undoQueue.pop())
+
+    redo: ->
+        if @redoQueue.length
+            @checkpoint()
+            @restore(@redoQueue.pop())
+
+
 class ChomperUI
     constructor: (canvasId) ->
         @renderer = new Renderer(canvasId)
         @renderer.callback = () => @redraw()
+        @undo = new UndoTracker(@renderer)
         @drawingSegment = false
 
         $('#histogramImage').mousedown((event) =>
-            x = event.clientX - @renderer.canvas.offsetLeft
-            y = event.clientY - @renderer.canvas.offsetTop
+            @undo.checkpoint()
+            [x, y] = @mouseXY(event)
             @renderer.segments.push(new Segment(x, y, x, y, 0.7, 0.3, 0))
             @renderer.clear()
             @drawingSegment = true
             @redraw
-        )
-
-        $('#histogramImage').dblclick((event) =>
-            x = event.clientX - @renderer.canvas.offsetLeft
-            y = event.clientY - @renderer.canvas.offsetTop
-            @renderer.clear()
-            @redraw
-            @renderer.lightX = x
-            @renderer.lightY = y
         )
 
         $('#histogramImage').mouseup((event) =>
@@ -271,15 +295,27 @@ class ChomperUI
         )
 
         $('#histogramImage').mousemove((event) =>
-            x = event.clientX - @renderer.canvas.offsetLeft
-            y = event.clientY - @renderer.canvas.offsetTop
-
+            [x, y] = @mouseXY(event)
             if @drawingSegment
                 s = @renderer.segments[@renderer.segments.length - 1]
                 s.setPoint1(x, y)
                 @renderer.clear()
                 @redraw
         )
+
+        $('#clearButton').click(() => @clear())
+        $('#undoButton').click(() => @undo.undo())
+        $('#redoButton').click(() => @undo.redo())
+
+    clear: ->
+        if @renderer.segments.length
+            @undo.checkpoint()
+            @renderer.segments = []
+            @renderer.clear()
+
+    mouseXY: (e) ->
+        o = $(@renderer.canvas).offset()
+        return [e.pageX - o.left, e.pageY - o.top]
 
     redraw: ->
         @renderer.drawLight(1000)
@@ -301,5 +337,3 @@ $(document).ready(() ->
     ui = new ChomperUI 'histogramImage'
     ui.start()
 )
-
-$('#slider').slider()
