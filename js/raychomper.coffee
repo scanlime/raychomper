@@ -204,13 +204,10 @@ class RayChomper
                 # Modified version of Xiaolin Wu's antialiased line algorithm:
                 # http://en.wikipedia.org/wiki/Xiaolin_Wu%27s_line_algorithm
                 #
-                # Modification to Wu's algorithm for brightness compensation:
-                # The total brightness of the line should be proportional to its
-                # length, but with Wu's algorithm it's proportional to dx.
-                # Scale the brightness of each pixel to compensate.
-                #
-                # This implementation also leaves off the endpoints, for speed and
-                # to reduce bright spots caused by overrepresentation of endpoints.
+                # Brightness compensation:
+                #   The total brightness of the line should be proportional to its
+                #   length, but with Wu's algorithm it's proportional to dx.
+                #   We scale the brightness of each pixel to compensate.
 
                 dx = x1 - x0
                 dy = y1 - y0
@@ -244,14 +241,30 @@ class RayChomper
                 gradient = dy / dx
                 br = 128 * sqrt(dx*dx + dy*dy) / dx
 
+                # First endpoint
                 x05 = x0 + 0.5
                 xend = x05|0
                 yend = y0 + gradient * (xend - x0)
-                xpxl1 = (xend|0) + 1
+                xgap = br * (1 - x05 + xend)
+                xpxl1 = xend + 1
                 ypxl1 = yend|0
+                i = hX * xpxl1 + hY * ypxl1
+                counts[i] += xgap * (1 - yend + ypxl1)
+                counts[i + hY] += xgap * (yend - ypxl1)
                 intery = yend + gradient
-                xpxl2 = (x1 + 0.5)|0
 
+                # Second endpoint
+                x15 = x1 + 0.5
+                xend = x15|0
+                yend = y1 + gradient * (xend - x1)
+                xgap = br * (x15 - xend)
+                xpxl2 = x15|0
+                ypxl2 = yend|0
+                i = hX * xpxl2 + hY * ypxl2
+                counts[i] += xgap * (1 - yend + ypxl2)
+                counts[i + hY] += xgap * (yend - ypxl2)
+
+                # Everything else
                 while xpxl1 < xpxl2
                     iy = intery|0
                     fy = intery - iy
