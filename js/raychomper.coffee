@@ -26,13 +26,34 @@
 
 
 class Segment
-    constructor: (@x0, @y0, @x1, @y1, diffuse, reflective, transmissive) ->
-        # Cumulative probabilities for each event type
-        @d1 = diffuse
-        @r2 = @d1 + reflective
+    constructor: (x0, y0, x1, y1, diffuse, reflective, transmissive) ->
+        @setDiffuse(diffuse)
+        @setReflective(reflective)
+        @setTransmissive(transmissive)
+        @setPoint0(x0, y0)
+        @setPoint1(x1, y1)
+
+    setDiffuse: (diffuse) ->
+        d1 = diffuse
+        @r2 += d1 - @d1
+        @t3 += d1 - @d1
+        @d1 = d1
+
+    setReflective: (reflective) ->
+        r2 = @d1 + reflective
+        @t3 += r2 - @r2
+        @r2 = r2
+
+    setTransmissive: (transmissive) ->
         @t3 = @r2 + transmissive
 
-        # Calculate normal vector
+    setPoint0: (@x0, @y0) ->
+        @calculateNormal()
+
+    setPoint1: (@x1, @y1) ->
+        @calculateNormal()
+
+    calculateNormal: ->
         dx = @x1 - @x0
         dy = @y1 - @y0
         len = Math.sqrt(dx*dx + dy*dy)
@@ -49,11 +70,10 @@ class Renderer
         @canvas.addEventListener('resize', (e) => @resize())
 
         # Hardcoded threadpool size
-        numWorkers = 4
         @workerURI = 'rayworker.js'
 
         # Placeholders for real workers, created in @start()
-        @workers = ({'_index': i} for i in [0..numWorkers])
+        @workers = ({'_index': i} for i in [0..1])
 
         # Cookies for keeping track of in-flight changes while rendering
         @workCookie = 1
@@ -174,11 +194,20 @@ class Renderer
         # ourselves before a single frame is rendered.
         @workCookie++
 
+        @startTime = new Date
+
         if @running
             # If any threads are running really large batches, reset them now.
             for w in @workers
                 if w._numRays >= 10000
                     @initWorker(w)
+
+    elapsedSeconds: ->
+        t = new Date()
+        return (t.getTime() - @startTime.getTime()) * 1e-3
+
+    raysPerSecond: ->
+        return @raysCast / @elapsedSeconds()
 
     drawLight: (br) ->
         # Draw the current simulation results to our Canvas
@@ -200,10 +229,12 @@ class Renderer
         @pixelImage.data.set(pix)
         @ctx.putImageData(@pixelImage, 0, 0)
 
-    drawSegments: (style) ->
+    drawSegments: (style, width) ->
         # Draw lines over each segment in our scene
 
         @ctx.strokeStyle = style
+        @ctx.lineWidth = width
+
         for s in @segments
             @ctx.beginPath()
             @ctx.moveTo(s.x0, s.y0)
@@ -214,22 +245,52 @@ class Renderer
 class ChomperUI
     constructor: () ->
         @renderer = new Renderer('histogramImage')
-        @renderer.segments.push(new Segment(100, 420, 500, 500, 0.7, 0.3, 0))
+        @renderer.callback = () => @redraw()
+        @drawingSegment = false
 
-        @renderer.callback = () =>
-            @renderer.drawLight(1000)
-            @renderer.drawSegments('#ff0000')
-            $('#raysCast').text(@renderer.raysCast)
+        $('#histogramImage').mousedown((event) =>
+            x = event.clientX - @renderer.canvas.offsetLeft
+            y = event.clientY - @renderer.canvas.offsetTop
+            @renderer.segments.push(new Segment(x, y, x, y, 0.7, 0.3, 0))
+            @renderer.clear()
+            @drawingSegment = true
+            @redraw
+        )
+
+        $('#histogramImage').dblclick((event) =>
+            x = event.clientX - @renderer.canvas.offsetLeft
+            y = event.clientY - @renderer.canvas.offsetTop
+            @renderer.clear()
+            @redraw
+            @renderer.lightX = x
+            @renderer.lightY = y
+        )
+
+        $('#histogramImage').mouseup((event) =>
+            @drawingSegment = false
+        )
 
         $('#histogramImage').mousemove((event) =>
             x = event.clientX - @renderer.canvas.offsetLeft
             y = event.clientY - @renderer.canvas.offsetTop
-            $('#debugText').text(x + ", " + y)
-            @renderer.segments[4] = new Segment(x, y, 400, 400, 0.7, 0.3, 0)
-            @renderer.clear()
+
+            if @drawingSegment
+                s = @renderer.segments[@renderer.segments.length - 1]
+                s.setPoint1(x, y)
+                @renderer.clear()
+                @redraw
         )
 
-    start: () ->
+    redraw: ->
+        @renderer.drawLight(1000)
+
+        if @drawingSegment
+            @renderer.drawSegments('#0dd', 3)
+
+        $('#raysCast').text(@renderer.raysCast)
+        $('#raySpeed').text(@renderer.raysPerSecond()|0)
+
+    start: ->
         @renderer.start()
 
     stop: () ->

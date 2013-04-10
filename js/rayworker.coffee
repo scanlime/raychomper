@@ -24,6 +24,45 @@
     OTHER DEALINGS IN THE SOFTWARE.
 ###
 
+@innerLoop = (c, i, e, b, y, g, u, v) ->
+    # Unrolled inner loop for line drawing algorithm.
+    #
+    # Most of the raytracer is inlined below, to avoid the costs
+    # in accessing member variables or making function calls. Here,
+    # we're tightly iterating using only a few variables, and a small
+    # function runs much faster.
+
+    loop
+
+        return if i >= e
+        t = b * (y - (y|0))
+        c[j = i + v * (y|0)] += b - t
+        c[j + v] += t
+        y += g
+        i += u
+
+        return if i >= e
+        t = b * (y - (y|0))
+        c[j = i + v * (y|0)] += b - t
+        c[j + v] += t
+        y += g
+        i += u
+
+        return if i >= e
+        t = b * (y - (y|0))
+        c[j = i + v * (y|0)] += b - t
+        c[j + v] += t
+        y += g
+        i += u
+
+        return if i >= e
+        t = b * (y - (y|0))
+        c[j = i + v * (y|0)] += b - t
+        c[j + v] += t
+        y += g
+        i += u
+
+
 @onmessage = (event) ->
     msg = event.data
 
@@ -183,16 +222,7 @@
             counts[i] += xgap * (1 - yend + ypxl2)
             counts[i + hY] += xgap * (yend - ypxl2)
 
-            # Inner loop!
-            i = hX * xpxl1
-            e = hX * xpxl2
-            while i < e
-                fy = br * (intery - (intery|0))
-                j = i + hY * (intery|0)
-                counts[j] += br - fy
-                counts[j + hY] += fy
-                intery += gradient
-                i += hX
+            innerLoop(counts, hX * xpxl1, hX * xpxl2, br, intery, gradient, hX, hY)
 
             ################################################################
             # What happens to the ray now?

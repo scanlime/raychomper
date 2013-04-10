@@ -115,7 +115,7 @@ void testApp::mousePressed(int x, int y, int button)
 {
     if (addingSegment) {
         ofVec2f p(x, y);
-        Scene::Material m(0.8,0.1,0.1);
+        Scene::Material m(1,0,0);
         scene.add(p, p, m);
         addingSecondPoint = true;
         hist.clear();

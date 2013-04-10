@@ -15,7 +15,7 @@ body {
 }
 
 #histogramImage {
-    width: 600px;
+    width: 1024px;
     height: 600px;
     background: black;
     border: 1px solid #444;
@@ -24,14 +24,13 @@ body {
 }
 
 .histBelow {
-    width: 600px;
+    width: 1024px;
     margin: 0px auto;
     display: block;
     padding: 0.25em 0;
 }
 
 .histBelow .label {
-    float: left;
     padding: 0 0.5em;
     color: rgba(255, 255, 240, 0.2);
 }
@@ -42,8 +41,10 @@ body {
 
     <canvas id='histogramImage'></canvas>
 
-    <p class='histBelow'><span class='label'>Rays Cast:</span><span id='raysCast'>0</span></p>
-    <p class='histBelow'><span class='label'>Debug:</span><span id='debugText'></span></p>
+    <p class='histBelow'>
+        <span class='label'>Rays Cast:</span><span id='raysCast'>0</span>
+        <span class='label'>Speed:</span><span id='raySpeed'>-</span> rays/sec
+    </p>
 
 </body>
 </html>
