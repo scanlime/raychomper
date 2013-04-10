@@ -243,8 +243,8 @@ class Renderer
 
 
 class ChomperUI
-    constructor: () ->
-        @renderer = new Renderer('histogramImage')
+    constructor: (canvasId) ->
+        @renderer = new Renderer(canvasId)
         @renderer.callback = () => @redraw()
         @drawingSegment = false
 
@@ -298,6 +298,8 @@ class ChomperUI
 
 
 $(document).ready(() ->
-    ui = new ChomperUI
+    ui = new ChomperUI 'histogramImage'
     ui.start()
 )
+
+$('#slider').slider()
