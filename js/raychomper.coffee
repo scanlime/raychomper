@@ -24,6 +24,7 @@
     OTHER DEALINGS IN THE SOFTWARE.
 ###
 
+
 class Segment
     constructor: (@x0, @y0, @x1, @y1, diffuse, reflective, transmissive) ->
         # Cumulative probabilities for each event type
@@ -77,14 +78,8 @@ class RayChomper
         @doFrame()
 
     doFrame: ->    
-        console.time("Sim")
-        @simulate(2000)
-        console.timeEnd("Sim")
-
-        console.time("Draw")
-        @draw()
-        console.timeEnd("Draw")
-
+        @simulate(500)
+        @draw(300)
         setTimeout((() => @doFrame()), 0)
 
     clear: ->
@@ -93,11 +88,10 @@ class RayChomper
         for i in [0..n] by 1
             @counts[i] = 0
 
-    draw: ->
+    draw: (br) ->
         # Draw the current simulation results to our Canvas
 
-        br = 500 / @divisor
-
+        br /= @divisor
         n = @width * @height
         pix = @pixels
         c = @counts
@@ -269,15 +263,16 @@ class RayChomper
                 counts[i] += xgap * (1 - yend + ypxl2)
                 counts[i + hY] += xgap * (yend - ypxl2)
 
-                # Everything else
-                while xpxl1 < xpxl2
-                    iy = intery|0
-                    fy = intery - iy
-                    i = hX * xpxl1 + hY * iy
-                    counts[i] += br * (1-fy)
-                    counts[i + hY] += br * fy
+                # Inner loop!
+                i = hX * xpxl1
+                e = hX * xpxl2
+                while i < e
+                    fy = br * (intery - (intery|0))
+                    j = i + hY * (intery|0)
+                    counts[j] += br - fy
+                    counts[j + hY] += fy
                     intery += gradient
-                    xpxl1++
+                    i += hX
 
                 ################################################################
                 # What happens to the ray now?
@@ -311,7 +306,18 @@ class RayChomper
 
 $(document).ready(() ->
     r = new RayChomper('histogramImage')
-    r.segments.push(new Segment(300, 100, 4000, 1800, 1.0, 0, 0))
-    r.segments.push(new Segment(100, 400, 200, 500, 1.0, 0.2, 0))
+
+    for t in [0..150]
+        a = (1 + t) * 4
+        b = t * 0.2
+        c = b + 0.1
+        s = 0.95
+        r.segments.push(new Segment( 
+            r.lightX + Math.cos(b) * a,
+            r.lightY + Math.sin(b) * a * s,
+            r.lightX + Math.cos(c) * a,
+            r.lightY + Math.sin(c) * a * s,
+            1, 0, 0))
+
     r.start()
 )
