@@ -220,4 +220,9 @@
                 # Absorbed
                 break
 
-    postMessage { 'cookie': cookie, 'counts': counts, 'numRays': msg.numRays }
+    msg = {
+        'cookie': cookie,
+        'numRays': msg.numRays,
+        'counts': counts.buffer,
+    }
+    @postMessage(msg, [counts.buffer])

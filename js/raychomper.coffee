@@ -124,7 +124,7 @@ class Renderer
                     @initWorker(w)
 
         if msg.cookie == @bufferCookie
-            s = msg.counts
+            s = new Uint32Array(msg.counts)
             for i in [0..n] by 1
                 d[i] += s[i]
             @raysCast += msg.numRays
