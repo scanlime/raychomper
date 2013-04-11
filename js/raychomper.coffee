@@ -81,6 +81,7 @@ class Renderer
 
         @callback = () -> null
         @segments = []
+        @exposure = 0.5
 
         @running = false
         @resize()
@@ -112,6 +113,23 @@ class Renderer
             new Segment(@width-1, @height-1, @width-1, 0, 0,0,0),
             new Segment(@width-1, @height-1, 0, @height-1, 0,0,0),
         ]
+
+    getState: ->
+        return [
+            @exposure,
+            @segments.slice(),
+            @lightX,
+            @lightY,
+        ]
+
+    setState: (record) ->
+        [
+            @exposure,
+            @segments,
+            @lightX,
+            @lightY,
+        ] = record
+        @clear()
 
     stop: ->
         @running = false
@@ -214,7 +232,8 @@ class Renderer
     drawLight: (br) ->
         # Draw the current simulation results to our Canvas
 
-        br /= @raysCast
+        br = Math.exp(1 + 10 * @exposure) / @raysCast
+
         n = @width * @height
         pix = @pixels
         c = @counts
@@ -253,15 +272,10 @@ class UndoTracker
         @undoQueue.push(@checkpointData())
 
     checkpointData: ->
-        return [
-            @renderer.lightX,
-            @renderer.lightY,
-            @renderer.segments.slice()
-        ]
+        return @renderer.getState()
 
     restore: (record) ->
-        [@renderer.lightX, @renderer.lightY, @renderer.segments] = record
-        @renderer.clear()
+        @renderer.setState(record)
 
     undo: ->
         if @undoQueue.length
@@ -274,38 +288,90 @@ class UndoTracker
             @restore(@redoQueue.pop())
 
 
+class VSlider
+    constructor: (@button, @track) ->
+        @button
+            .mousedown (e) =>
+                return unless e.which == 1
+                @dragging = true
+                @beginChange()
+                @updateDrag(e.pageY)
+                e.preventDefault()
+        $('body')
+            .mousemove (e) =>
+                return unless @dragging
+                @updateDrag(e.pageY)
+                e.preventDefault()
+            .mouseup (e) =>
+                @dragging = false
+                @endDrag()
+
+    updateDrag: (pageY) ->
+        h = @button.height()
+        y = pageY - @button.parent().offset().top - h/2
+        value = y / (@track.height() - h)
+        value = 1 - Math.min(1, Math.max(0, value))
+        @valueChanged(value)
+        @setValue(value)
+        $('body').css cursor: 'pointer'
+
+    setValue: (v) ->
+        y = (@track.height() - @button.height()) * (1 - v)
+        @button.css top: y
+
+    endDrag: ->
+        $('body').css cursor: 'auto'
+
+
 class ChomperUI
     constructor: (canvasId) ->
         @renderer = new Renderer(canvasId)
         @renderer.callback = () => @redraw()
         @undo = new UndoTracker(@renderer)
+
+        @exposureSlider = new VSlider $('#exposureSlider'), $('#workspace')
+        @exposureSlider.setValue(@renderer.exposure)
+        @exposureSlider.valueChanged = (v) =>
+            @renderer.exposure = v
+            @redraw()
+        @exposureSlider.beginChange = () =>
+            @undo.checkpoint()
+
         @drawingSegment = false
 
-        $('#histogramImage').mousedown((event) =>
-            @undo.checkpoint()
-            [x, y] = @mouseXY(event)
-            @renderer.segments.push(new Segment(x, y, x, y, 0.7, 0.3, 0))
-            @renderer.clear()
-            @drawingSegment = true
-            @redraw
-        )
+        $('#histogramImage')
+            .mousedown (e) =>
+                @undo.checkpoint()
+                [x, y] = @mouseXY(e)
+                @renderer.segments.push(new Segment(x, y, x, y, 0.7, 0.3, 0))
+                @renderer.clear()
+                @drawingSegment = true
+                @redraw()
+                e.preventDefault()
 
-        $('#histogramImage').mouseup((event) =>
-            @drawingSegment = false
-        )
-
-        $('#histogramImage').mousemove((event) =>
-            [x, y] = @mouseXY(event)
-            if @drawingSegment
+        $('body')
+            .mouseup (e) =>
+                @drawingSegment = false
+            .mousemove (e) =>
+                return unless @drawingSegment
+                [x, y] = @mouseXY(e)
                 s = @renderer.segments[@renderer.segments.length - 1]
                 s.setPoint1(x, y)
                 @renderer.clear()
-                @redraw
-        )
+                @redraw()
+                e.preventDefault()
 
-        $('#clearButton').click(() => @clear())
-        $('#undoButton').click(() => @undo.undo())
-        $('#redoButton').click(() => @undo.redo())
+        $('#clearButton').click () => @clear()
+
+        $('#undoButton').click () =>
+            @undo.undo()
+            @exposureSlider.setValue(@renderer.exposure)
+            @redraw()
+
+        $('#redoButton').click () =>
+            @undo.redo()
+            @exposureSlider.setValue(@renderer.exposure)
+            @redraw()
 
     clear: ->
         if @renderer.segments.length
@@ -318,7 +384,7 @@ class ChomperUI
         return [e.pageX - o.left, e.pageY - o.top]
 
     redraw: ->
-        @renderer.drawLight(1000)
+        @renderer.drawLight()
 
         if @drawingSegment
             @renderer.drawSegments('#0dd', 3)
