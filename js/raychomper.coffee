@@ -26,32 +26,29 @@
 
 
 class Segment
-    constructor: (x0, y0, x1, y1, diffuse, reflective, transmissive) ->
-        @setDiffuse(diffuse)
-        @setReflective(reflective)
-        @setTransmissive(transmissive)
-        @setPoint0(x0, y0)
-        @setPoint1(x1, y1)
+    constructor: (@x0, @y0, @x1, @y1, @diffuse, @reflective, @transmissive) ->
+        @calculateProbabilities()
+        @calculateNormal()
 
-    setDiffuse: (diffuse) ->
-        d1 = diffuse
-        @r2 += d1 - @d1
-        @t3 += d1 - @d1
-        @d1 = d1
+    setDiffuse: (@diffuse) ->
+        @calculateProbabilities()
 
     setReflective: (reflective) ->
-        r2 = @d1 + reflective
-        @t3 += r2 - @r2
-        @r2 = r2
+        @calculateProbabilities()
 
     setTransmissive: (transmissive) ->
-        @t3 = @r2 + transmissive
+        @calculateProbabilities()
 
     setPoint0: (@x0, @y0) ->
         @calculateNormal()
 
     setPoint1: (@x1, @y1) ->
         @calculateNormal()
+
+    calculateProbabilities: ->
+        @d1 = @diffuse
+        @r2 = @d1 + @reflective
+        @t3 = @r2 + @transmissive
 
     calculateNormal: ->
         dx = @x1 - @x0
@@ -130,6 +127,69 @@ class Renderer
             @lightY,
         ] = record
         @clear()
+
+    getStateBlob: ->
+        bytes = []
+        formatVersion = 0
+
+        push8 = (v) ->
+            bytes.push(String.fromCharCode(v|0))
+
+        push8F = (v) ->
+            # Normalize a float from [0,1] to an 8-bit value
+            push8(Math.max(0, Math.min(255, (v * 255)|0)))
+
+        push16 = (v) ->
+            push8((v|0) >> 8)
+            push8((v|0) & 0xFF)
+
+        push8(formatVersion)
+        push16(@width)
+        push16(@height)
+        push16(@lightX)
+        push16(@lightY)
+        push8F(@exposure)
+        push16(@segments.length)
+
+        for s in @segments
+            push16(s.x0)
+            push16(s.y0)
+            push16(s.x1)
+            push16(s.y1)
+            push8F(s.diffuse)
+            push8F(s.reflective)
+            push8F(s.transmissive)
+
+        return bytes.join('')
+
+    setStateBlob: (s) ->
+        formatVersion = s.charCodeAt(0)
+        @setStateBlobV0(s) if formatVersion == 0
+        @clear()
+
+    setStateBlobV0: (s) ->
+        @width = (s.charCodeAt(1) << 8) | s.charCodeAt(2)
+        @height = (s.charCodeAt(3) << 8) | s.charCodeAt(4)
+        @lightX = (s.charCodeAt(5) << 8) | s.charCodeAt(6)
+        @lightY = (s.charCodeAt(7) << 8) | s.charCodeAt(8)
+        @exposure = s.charCodeAt(9) / 255.0
+
+        @segments = []
+        numSegments = (s.charCodeAt(10) << 8) | s.charCodeAt(11)
+
+        o = 12
+        while numSegments--
+            x0 = (s.charCodeAt(0+o) << 8) | s.charCodeAt(1+o)
+            y0 = (s.charCodeAt(2+o) << 8) | s.charCodeAt(3+o)
+            x1 = (s.charCodeAt(4+o) << 8) | s.charCodeAt(5+o)
+            y1 = (s.charCodeAt(6+o) << 8) | s.charCodeAt(7+o)
+            diffuse = s.charCodeAt(8+o) / 255.0
+            reflective = s.charCodeAt(9+o) / 255.0
+            transmissive = s.charCodeAt(10+o) / 255.0
+
+            o += 11
+            @segments.push(new Segment(
+                x0, y0, x1, y1, diffuse, reflective, transmissive))
 
     stop: ->
         @running = false
@@ -297,14 +357,17 @@ class VSlider
                 @beginChange()
                 @updateDrag(e.pageY)
                 e.preventDefault()
+
         $('body')
             .mousemove (e) =>
                 return unless @dragging
                 @updateDrag(e.pageY)
                 e.preventDefault()
+
             .mouseup (e) =>
                 @dragging = false
-                @endDrag()
+                $('body').css cursor: 'auto'
+                @endChange()
 
     updateDrag: (pageY) ->
         h = @button.height()
@@ -319,25 +382,37 @@ class VSlider
         y = (@track.height() - @button.height()) * (1 - v)
         @button.css top: y
 
-    endDrag: ->
-        $('body').css cursor: 'auto'
-
 
 class ChomperUI
     constructor: (canvasId) ->
         @renderer = new Renderer(canvasId)
-        @renderer.callback = () => @redraw()
         @undo = new UndoTracker(@renderer)
 
+        # Load saved state, if any
+        saved = document.location.hash.replace('#', '')
+        if saved
+            @renderer.setStateBlob(atob(saved))
+
+        # Set up our 'exposure' slider
         @exposureSlider = new VSlider $('#exposureSlider'), $('#workspace')
         @exposureSlider.setValue(@renderer.exposure)
+
+        @drawingSegment = false
+
         @exposureSlider.valueChanged = (v) =>
             @renderer.exposure = v
             @redraw()
+
         @exposureSlider.beginChange = () =>
             @undo.checkpoint()
 
-        @drawingSegment = false
+        @exposureSlider.endChange = () =>
+            @updateLink()
+
+        @renderer.callback = () =>
+            @redraw()
+            $('#raysCast').text(@renderer.raysCast)
+            $('#raySpeed').text(@renderer.raysPerSecond()|0)
 
         $('#histogramImage')
             .mousedown (e) =>
@@ -352,6 +427,8 @@ class ChomperUI
         $('body')
             .mouseup (e) =>
                 @drawingSegment = false
+                @updateLink()
+
             .mousemove (e) =>
                 return unless @drawingSegment
                 [x, y] = @mouseXY(e)
@@ -361,23 +438,36 @@ class ChomperUI
                 @redraw()
                 e.preventDefault()
 
-        $('#clearButton').click () => @clear()
+        $('#clearButton').click () =>
+            return if !@renderer.segments.length
+            @undo.checkpoint()
+            @renderer.segments = []
+            @renderer.clear()
+            @updateLink()
+            @redraw()
 
         $('#undoButton').click () =>
             @undo.undo()
             @exposureSlider.setValue(@renderer.exposure)
+            @updateLink()
             @redraw()
 
         $('#redoButton').click () =>
             @undo.redo()
             @exposureSlider.setValue(@renderer.exposure)
+            @updateLink()
             @redraw()
 
-    clear: ->
-        if @renderer.segments.length
-            @undo.checkpoint()
-            @renderer.segments = []
-            @renderer.clear()
+        $('#pngButton').click () =>
+            @renderer.drawLight()
+            document.location.href = @renderer.canvas.toDataURL('image/png').replace('image/png', 'image/octet-stream')
+
+        $('#linkButton').click () =>
+            @updateLink()
+            window.prompt("Copy this URL to share your garden.", document.location)
+
+    updateLink: ->
+        document.location.hash = btoa(@renderer.getStateBlob())
 
     mouseXY: (e) ->
         o = $(@renderer.canvas).offset()
@@ -385,21 +475,11 @@ class ChomperUI
 
     redraw: ->
         @renderer.drawLight()
-
         if @drawingSegment
-            @renderer.drawSegments('#0dd', 3)
-
-        $('#raysCast').text(@renderer.raysCast)
-        $('#raySpeed').text(@renderer.raysPerSecond()|0)
-
-    start: ->
-        @renderer.start()
-
-    stop: () ->
-        @renderer.stop()
+            @renderer.drawSegments('#ff8', 3)
 
 
 $(document).ready(() ->
     ui = new ChomperUI 'histogramImage'
-    ui.start()
+    ui.renderer.start()
 )
